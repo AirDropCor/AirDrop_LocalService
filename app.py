@@ -1,11 +1,11 @@
-from flask import Flask
+import socket
+from flask import Flask, jsonify
 from flask_cors import CORS
 import asyncio
 import websockets
 
 app = Flask(__name__)
 CORS(app)
-ip = "192.168.10.101"
 
 # 用于存储所有客户端的 WebSocket 连接对象
 clients = set()
@@ -28,9 +28,19 @@ async def handle_websocket(websocket, path):
         # 移除断开的 WebSocket 连接
         clients.remove(websocket)
 
+def get_ip_address():
+    ip_addresses = socket.gethostbyname_ex(socket.gethostname())[2]
+    matching_ips = [ip for ip in ip_addresses if ip.startswith('192.168')][0]
+    print("本机ip为: " + matching_ips)
+    return matching_ips
 
+@app.route('/get_ip', methods=['GET'])
+def get_ip():
+    ip_address = get_ip_address()
+    return jsonify({'ip': ip_address})
 
 if __name__ == "__main__":
-    start_server = websockets.serve(handle_websocket, ip, 5230)
+    http_server = app.run(host='localhost', port=5000)
+    start_server = websockets.serve(handle_websocket, get_ip_address(), 5230)
     asyncio.get_event_loop().run_until_complete(start_server)
     asyncio.get_event_loop().run_forever()
