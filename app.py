@@ -1,32 +1,44 @@
 import socket
-from flask import Flask
+from flask import Flask, request, jsonify
 from flask_cors import CORS
-import asyncio
-import websockets
 
 app = Flask(__name__)
 CORS(app)
 
-# 用于存储所有客户端的 WebSocket 连接对象
-clients = set()
+# Create a stack to store messages
+message_stack = []
 
-async def handle_websocket(websocket, path):
-    try:
-        # 添加当前连接的 WebSocket 到 clients 集合
-        clients.add(websocket)
+# Define the maximum size of the message stack
+MAX_STACK_SIZE = 30
 
-        async for message in websocket:
-            print('收到消息：', message)
+# GET请求，获取所有消息
+@app.route('/messages', methods=['GET'])
+def get_messages():
+    global message_stack
 
-            # 在这里你可以处理收到的消息，并根据需要发送消息给客户端
-            response = f"服务器已收到消息：{message}"
+    # Return the entire message stack as a JSON response
+    return jsonify({'messages': message_stack})
 
-            # 将消息发送给所有连接的客户端
-            await asyncio.gather(*[client.send(response) for client in clients])
-    except websockets.exceptions.ConnectionClosedError:
-        print('WebSocket连接已关闭')
-        # 移除断开的 WebSocket 连接
-        clients.remove(websocket)
+# POST请求，添加新消息
+@app.route('/messages', methods=['POST'])
+def post_message():
+    global message_stack
+
+    # Get the message from the request's JSON data
+    data = request.get_json()
+    message = data.get('message')
+
+    if not message:
+        return jsonify({'error': 'Invalid message'}), 400
+
+    # Insert the new message at the beginning of the stack
+    message_stack.insert(0, message)
+
+    # Keep the stack size within the limit by popping the oldest message if necessary
+    if len(message_stack) > MAX_STACK_SIZE:
+        message_stack.pop()
+
+    return jsonify({'message': 'Message added successfully'}), 201  # 使用201状态码表示创建成功
 
 
 def get_ip_address():
@@ -39,6 +51,4 @@ if __name__ == "__main__":
     SERVER_IP = get_ip_address() or 'localhost'
     with open('config.ts', 'w') as f:
         f.write(f"const SERVER_IP = '{SERVER_IP}';\nexport default SERVER_IP;\n")
-    start_server = websockets.serve(handle_websocket, get_ip_address(), 5230)
-    asyncio.get_event_loop().run_until_complete(start_server)
-    asyncio.get_event_loop().run_forever()
+    app.run(host=SERVER_IP, port=5230)
