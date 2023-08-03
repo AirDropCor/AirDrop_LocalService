@@ -1,5 +1,5 @@
 import socket
-from flask import Flask, jsonify
+from flask import Flask
 from flask_cors import CORS
 import asyncio
 import websockets
@@ -28,19 +28,18 @@ async def handle_websocket(websocket, path):
         # 移除断开的 WebSocket 连接
         clients.remove(websocket)
 
+
 def get_ip_address():
     ip_addresses = socket.gethostbyname_ex(socket.gethostname())[2]
     matching_ips = [ip for ip in ip_addresses if ip.startswith('192.168')][0]
     print("本机ip为: " + matching_ips)
     return matching_ips
 
-@app.route('/get_ip', methods=['GET'])
-def get_ip():
-    ip_address = get_ip_address()
-    return jsonify({'ip': ip_address})
-
 if __name__ == "__main__":
-    http_server = app.run(host='localhost', port=5000)
+    SERVER_IP = get_ip_address() or 'localhost'
+    with open('config.ts', 'w') as f:
+        f.write(f"const SERVER_IP = '{SERVER_IP}';\nexport default SERVER_IP;\n")
     start_server = websockets.serve(handle_websocket, get_ip_address(), 5230)
     asyncio.get_event_loop().run_until_complete(start_server)
     asyncio.get_event_loop().run_forever()
+K
