@@ -42,4 +42,3 @@ if __name__ == "__main__":
     start_server = websockets.serve(handle_websocket, get_ip_address(), 5230)
     asyncio.get_event_loop().run_until_complete(start_server)
     asyncio.get_event_loop().run_forever()
-K
