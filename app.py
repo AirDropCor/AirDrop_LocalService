@@ -1,44 +1,16 @@
 import socket
-from flask import Flask, request, jsonify
+from flask import Flask
 from flask_cors import CORS
+from Controller.MessageController import message_app  # 从 message_controller.py 中导入蓝图
 
 app = Flask(__name__)
 CORS(app)
 
-# Create a stack to store messages
+# 创建一个用于存储消息的栈
 message_stack = []
 
-# Define the maximum size of the message stack
+# 定义消息栈的最大大小
 MAX_STACK_SIZE = 30
-
-# GET请求，获取所有消息
-@app.route('/messages', methods=['GET'])
-def get_messages():
-    global message_stack
-
-    # Return the entire message stack as a JSON response
-    return jsonify({'messages': message_stack})
-
-# POST请求，添加新消息
-@app.route('/messages', methods=['POST'])
-def post_message():
-    global message_stack
-
-    # Get the message from the request's JSON data
-    data = request.get_json()
-    message = data.get('message')
-
-    if not message:
-        return jsonify({'error': 'Invalid message'}), 400
-
-    # Insert the new message at the beginning of the stack
-    message_stack.insert(0, message)
-
-    # Keep the stack size within the limit by popping the oldest message if necessary
-    if len(message_stack) > MAX_STACK_SIZE:
-        message_stack.pop()
-
-    return jsonify({'message': 'Message added successfully'}), 201  # 使用201状态码表示创建成功
 
 
 def get_ip_address():
@@ -47,8 +19,13 @@ def get_ip_address():
     print("本机ip为: " + matching_ips)
     return matching_ips
 
+
 if __name__ == "__main__":
     SERVER_IP = get_ip_address() or 'localhost'
     with open('config.ts', 'w') as f:
         f.write(f"const SERVER_IP = '{SERVER_IP}';\nexport default SERVER_IP;\n")
+
+    # 将 message_app 蓝图注册到主程序中
+    app.register_blueprint(message_app)
+
     app.run(host=SERVER_IP, port=5230)
